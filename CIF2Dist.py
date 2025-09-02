@@ -1,13 +1,8 @@
 import argparse
-from pymatgen.core import Structure
-from pymatgen.core.structure import Structure, PeriodicSite
 from pymatgen.symmetry.analyzer import SpacegroupAnalyzer
-from pymatgen.analysis.structure_matcher import StructureMatcher
 from pymatgen.io.cif import CifParser
-from collections import defaultdict
 import os
 import re
-import math
 import numpy as np
 
 remove_int_from_str = r'[0-9]'
