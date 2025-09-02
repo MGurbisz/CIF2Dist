@@ -7,24 +7,25 @@ from pymatgen.io.cif import CifParser
 from collections import defaultdict
 import os
 import re
+import math
 import numpy as np
 
 remove_int_from_str = r'[0-9]'
 
 def main():
     parser = argparse.ArgumentParser()
-    # parser.add_argument("cif", help="Input CIF file")
-    # parser.add_argument("--site", required=True, help="Wyckoff label (e.g., '4a') or Atom site (e.g., Al1)")
-    # parser.add_argument("--cutoff", required=False, help="cutoff distance in Angstrom, default 10 A")
-    # args = parser.parse_args()
+    parser.add_argument("cif", help="Input CIF file")
+    parser.add_argument("--site", required=True, help="Wyckoff label (e.g., '4a') or Atom site (e.g., Al1)")
+    parser.add_argument("--cutoff", required=False, help="cutoff distance in Angstrom, default 10 A")
+    args = parser.parse_args()
     
 
     # DEBUG
-    print(compute_distances("bsp.cif","Y",3))
+    # export_to_txt(compute_distances("bsp.cif","Y",4))
 
-    #compute_distances(args.cif, args.site, args.cutoff_dist)
+    export_to_txt(compute_distances(args.cif, args.site, args.cutoff))
 
-def compute_distances(cif_path, user_site: str, cutoff_dist: float):
+def compute_distances(cif_path, user_site: str, cutoff_dist: float) -> list[tuple[str, int, float]]:
     """
     Main Method. Compute distances using cif, site information and cutoff distance
     """
@@ -59,37 +60,52 @@ def compute_distances(cif_path, user_site: str, cutoff_dist: float):
         origin_fraccoord = get_asymmetric_coords_for_wyckoff(structure, wyckoff)
 
     # Now we have wyckoff letter disregarding user input
-    # calculation of distances using a supercell and get_neighbors
-    supercell = structure * (3,3,3)
+    # calculation of distances using the structure and get_neighbors
+    # supercell apparently not needed for get_sites_in_sphere
+
     origin_cart = structure.lattice.get_cartesian_coords(origin_fraccoord)
-    print(f"origin coordinates: {origin_cart}")
-    origin_site = PeriodicSite("X", origin_cart, structure.lattice, coords_are_cartesian=True)
 
-    results = supercell.get_sites_in_sphere(origin_cart, cutoff_dist, True, True)
+    neighbors = structure.get_sites_in_sphere(origin_cart, cutoff_dist, True, True)
 
-#    neighbors = supercell.get_neighbors(origin_site, cutoff_dist)
-#    shells = defaultdict(list)
+    # get site labels and distances from all found neighbors
+    neighbor_distances = []
+    for neighbor in range(len(neighbors)):
+        distance = round(calc_distance(origin_cart, neighbors[neighbor].coords), 3)
+        neighbor_distances.append([neighbors[neighbor].label, distance])
 
-#    max_dist = max(round(origin_site.distance(n), 3) for n in neighbors)
-#    print(f"Max distance among neighbors: {max_dist} Å")
+    sorted_neighbor_distances = sorted(neighbor_distances, key=lambda x: x[0]) # sort based on name first
+    sorted_neighbor_distances = sorted(sorted_neighbor_distances, key=lambda x: x[1]) # sort based on distance, which comes second in the sublist
 
-#    for neighbor in neighbors:
-#        distance = round(origin_site.distance(neighbor), 3)
-#        species = str(neighbor.species_string)
-#        shell_key = (distance, species)
-#        shells[shell_key].append(neighbor)
-    #    print(f"Species: {neighbor.species}, Distance: {distance:.3f}, Coord: {neighbor.frac_coords}")
+    # count all sites at the same distances given they have the same label
+    results = []
+    current_site = None
+    site_count = 0
+    for i in range(len(sorted_neighbor_distances)):
+        key = (sorted_neighbor_distances[i][0], sorted_neighbor_distances[i][1])
 
-#    sorted_keys = sorted(shells.keys())
-# 
-#    for (dist, species)  in sorted_keys:
-#        group = shells[(dist, species)]
-    #    print(f"{species} at {dist} Å (count: {len(group)}):")
-    #    for neighbor in group:
-    #        print(f"Coord: {neighbor.frac_coords}")
-
+        if key != current_site:
+            if current_site is not None:
+                results.append([current_site[0], site_count, current_site[1]])
+            current_site = key
+            site_count = 1
+        else:
+            site_count += 1
+    
+    if current_site is not None:
+        results.append([current_site[0], site_count, current_site[1]])
 
     return results
+
+def export_to_txt(results: list[tuple[str, int, float]], filename="summary.txt") -> None:
+    """
+    gives a txt file. input is the results list
+    """
+    with open(filename, 'w') as f:
+        for row in results:
+            line = '\t'.join(str(item) for item in row)
+            f.write(line + '\n')
+    print(f"output file written.")
+    
 
 def classify_site(user_site: str) -> tuple[str, str]:
     """
@@ -156,6 +172,13 @@ def get_wyckoff_fraccoords_for_atomsite(parser: CifParser, structure, site_label
             print(f"Found match for '{site_label}' at index {i} with Wyckoff letter {wyckoff}")
             return wyckoff, target_coord
     raise ValueError(f"Could not match coordinates for '{site_label}' to any atom in structure.")
+
+def calc_distance (origin_coord: tuple[float, float, float], remote_coord: tuple[float, float, float]) -> float:
+    diff = origin_coord - remote_coord
+    squared_diff = diff ** 2
+    sum_squared_diff = np.sum(squared_diff)
+    distance = np.sqrt(sum_squared_diff)
+    return distance
 
 if __name__ == "__main__":
     main()
