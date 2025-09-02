@@ -5,27 +5,28 @@ import os
 import re
 import numpy as np
 
+__version__ = "0.0.2"
+
 remove_int_from_str = r'[0-9]'
 
 def main():
-    parser = argparse.ArgumentParser()
+    parser = argparse.ArgumentParser(prog="CIF2Dist")
+    parser.add_argument('-v', '--version', action='version', version=f'%(prog)s {__version__}', help="show program's version number and exit")
     parser.add_argument("cif", help="Input CIF file")
-    parser.add_argument("--site", required=True, help="Wyckoff label (e.g., '4a') or Atom site (e.g., Al1)")
-    parser.add_argument("--cutoff", required=False, help="cutoff distance in Angstrom, default 10 A")
+    parser.add_argument('-s', "--site", required=True, help="input wyckoff label (e.g., '4a'), atom site (e.g., Al1) or chem. element if unique")
+    parser.add_argument('-c', "--cutoff", required=False, help="cutoff distance in angstrom, default: 10 A", default=10)
+    parser.add_argument('-f', "--filter", required=False, help="target atom/site/element filter (e.g., Al -> return distances to all Al-Sites, Al1 -> return all distances to Al1-sites). default: None", default=None)
     args = parser.parse_args()
-    
 
     # DEBUG
     # export_to_txt(compute_distances("bsp.cif","Y",4))
 
-    export_to_txt(compute_distances(args.cif, args.site, args.cutoff))
+    export_to_txt(compute_distances(args.cif, args.site, args.cutoff, args.filter))
 
-def compute_distances(cif_path, user_site: str, cutoff_dist: float) -> list[tuple[str, int, float]]:
+def compute_distances(cif_path, user_site: str, cutoff_dist: float, filter: str) -> list[tuple[str, int, float]]:
     """
     Main Method. Compute distances using cif, site information and cutoff distance
     """
-    if cutoff_dist is None:
-        cutoff_dist = 10.0  # default
     site_class, site_label = classify_site(user_site)
 
     print("site class:", site_class)
@@ -36,7 +37,7 @@ def compute_distances(cif_path, user_site: str, cutoff_dist: float) -> list[tupl
 
     parser = CifParser(cif_path)
     structure = parser.get_structures(primitive=False)[0]
-    analyzer = SpacegroupAnalyzer(structure, symprec=1e-3)
+    analyzer = SpacegroupAnalyzer(structure, symprec=1e-5)
     wyckoff_data = analyzer.get_symmetry_dataset()
     wyckoff_letters = wyckoff_data["wyckoffs"]
 
@@ -62,14 +63,33 @@ def compute_distances(cif_path, user_site: str, cutoff_dist: float) -> list[tupl
 
     neighbors = structure.get_sites_in_sphere(origin_cart, cutoff_dist, True, True)
 
-    # get site labels and distances from all found neighbors
+    # Filter neighbors according to user filter
+    if filter is not None:
+        # if filter is wyckoff, get site label
+        filter_class, filter_label = classify_site(filter)
+        if filter_class == "wyckoff":
+            filter_fraccoord = get_asymmetric_coords_for_wyckoff(structure, filter_label)
+            filter_cart = structure.lattice.get_cartesian_coords(filter_fraccoord)
+            filter_neighbor = structure.get_sites_in_sphere(filter_cart, 0.1, True, True)
+            filter_label = filter_neighbor[0].label
+
+    # filter neighbors
+    filtered_neighbors = []
+    if filter is not None:
+        for i, neighbor in enumerate(neighbors):
+            if matches_filter(neighbor.label, filter_label):
+                filtered_neighbors.append(neighbor)
+    else:
+        filtered_neighbors = neighbors
+    
+    # get site labels and distances from all found neighbors. 
     neighbor_distances = []
-    for neighbor in range(len(neighbors)):
-        distance = round(calc_distance(origin_cart, neighbors[neighbor].coords), 3)
-        neighbor_distances.append([neighbors[neighbor].label, distance])
+    for neighbor in range(len(filtered_neighbors)):
+        distance = round(calc_distance(origin_cart, filtered_neighbors[neighbor].coords), 4)
+        neighbor_distances.append([filtered_neighbors[neighbor].label, distance])
 
     sorted_neighbor_distances = sorted(neighbor_distances, key=lambda x: x[0]) # sort based on name first
-    sorted_neighbor_distances = sorted(sorted_neighbor_distances, key=lambda x: x[1]) # sort based on distance, which comes second in the sublist
+    sorted_neighbor_distances = sorted(sorted_neighbor_distances, key=lambda x: x[1]) # then sort based on distance, which comes second in the sublist
 
     # count all sites at the same distances given they have the same label
     results = []
@@ -91,6 +111,16 @@ def compute_distances(cif_path, user_site: str, cutoff_dist: float) -> list[tupl
 
     return results
 
+def matches_filter(neighbor_label: str, filter_label: str) -> bool:
+    """
+    Returns true if neighbor_label matches filter_label.
+    If filter_label is a atom site: only exact match is accepted.
+    If filter_label is an element: All atomsites with this element are accepted"""
+    if re.match(r".*\d+$", filter_label):
+        return neighbor_label == filter_label
+    else:
+        return re.match(rf"^{re.escape(filter_label)}\d+$", neighbor_label) is not None
+
 def export_to_txt(results: list[tuple[str, int, float]], filename="summary.txt") -> None:
     """
     gives a txt file. input is the results list
@@ -101,6 +131,23 @@ def export_to_txt(results: list[tuple[str, int, float]], filename="summary.txt")
             f.write(line + '\n')
     print(f"output file written.")
     
+def get_atom_label_for_wyckoff(structure, user_wyckoff: str) -> str:
+    """
+    Returns atom site label given a wyckoff letter (4a and a will give the same result, multiplicity will be omitted)
+    """
+    analyzer = SpacegroupAnalyzer(structure, symprec=1e-5)
+    wyckoff_data = analyzer.get_symmetry_dataset()
+    wyckoff_letters = wyckoff_data["wyckoffs"]
+
+    target_letter = user_wyckoff.strip().lower()[-1]
+    for i, letter in enumerate(wyckoff_letters):
+        if letter.lower() == target_letter:
+            species = structure[i].species_string
+            label = f"{species}{i+1}"
+            return label
+    
+    raise ValueError(f"No site found with wyckoff letter: '{user_wyckoff}'")
+
 
 def classify_site(user_site: str) -> tuple[str, str]:
     """
