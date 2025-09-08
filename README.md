@@ -10,7 +10,7 @@ To use **CIF2Dist**, you need
 For installation, you can either 
 1. clone the git repository and install the package locally:
 ```bash
-git clone https://github.com/morcubot/CIF2Dist.git
+git clone https://github.com/mgurbisz/CIF2Dist.git
 cd CIF2Dist
 pip install .
 ```
