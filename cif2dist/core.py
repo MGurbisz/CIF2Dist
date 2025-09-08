@@ -1,27 +1,10 @@
-import argparse
 from pymatgen.symmetry.analyzer import SpacegroupAnalyzer
 from pymatgen.io.cif import CifParser
-import os
-import re
 import numpy as np
-
-__version__ = "0.0.2"
+import re
+import os
 
 remove_int_from_str = r'[0-9]'
-
-def main():
-    parser = argparse.ArgumentParser(prog="CIF2Dist")
-    parser.add_argument('-v', '--version', action='version', version=f'%(prog)s {__version__}', help="show program's version number and exit")
-    parser.add_argument("cif", help="Input CIF file")
-    parser.add_argument('-s', "--site", required=True, help="input wyckoff label (e.g., '4a'), atom site (e.g., Al1) or chem. element if unique")
-    parser.add_argument('-c', "--cutoff", required=False, help="cutoff distance in angstrom, default: 10 A", default=10)
-    parser.add_argument('-f', "--filter", required=False, help="target atom/site/element filter (e.g., Al -> return distances to all Al-Sites, Al1 -> return all distances to Al1-sites). default: None", default=None)
-    args = parser.parse_args()
-
-    # DEBUG
-    # export_to_txt(compute_distances("bsp.cif","Y",4))
-
-    export_to_txt(compute_distances(args.cif, args.site, args.cutoff, args.filter))
 
 def compute_distances(cif_path, user_site: str, cutoff_dist: float, filter: str) -> list[tuple[str, int, float]]:
     """
@@ -221,6 +204,3 @@ def calc_distance (origin_coord: tuple[float, float, float], remote_coord: tuple
     sum_squared_diff = np.sum(squared_diff)
     distance = np.sqrt(sum_squared_diff)
     return distance
-
-if __name__ == "__main__":
-    main()

@@ -1,0 +1,21 @@
+[build-system]
+requires = ["setuptools>=61", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "CIF2Dist"
+version = "0.0.2"
+description = "CIF2Dist is a python application to calculate the number and distance of coordination spheres of atoms in a lattice based on a cif."
+readme = "README.md"
+license = {text = "MIT"}
+authors = [
+    {name = "Marco Gurbisz and Tom Foerster", email = "marco.gurbisz@hhu.de"}
+]
+dependencies = ["numpy", "pymatgen"]
+
+[project.urls]
+Homepage = "https://github.com/morcubot/CIF2Dist"
+Repository = "https://github.com/morcubot/CIF2Dist"
+
+[project.scripts]
+CIF2Dist = "cif2dist.cli:main"
