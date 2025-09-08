@@ -25,7 +25,7 @@ CIF2Dist --help
 If the CIF2Dist command is not found, you may need to add Python's Scripts Folder to your Path:
 For Windows, search for 'Environment Variables' and open 'Edit the system environment variables'. There open 'Environment Variables'. Under 'User Variables' find Path and click Edit. Select 'New' and add this:
 ```
-%LOCALAPPDATA%\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\Scripts
+%LOCALAPPDATA%\Packages\PythonSoftwareFoundation.Python.3.###\LocalCache\local-packages\Python3###\Scripts
 ```
 Alternatively, you can run it using:
 ```bash
