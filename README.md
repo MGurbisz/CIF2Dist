@@ -10,7 +10,7 @@ To use **CIF2Dist**, you need
 For installation, you can either 
 1. clone the git repository and install the package locally:
 ```bash
-git clone https://github.com/mgurbisz/CIF2Dist.git
+git clone https://github.com/MGurbisz/CIF2Dist.git
 cd CIF2Dist
 pip install .
 ```
@@ -23,6 +23,7 @@ Then run from command line
 CIF2Dist --help
 ```
 If the CIF2Dist command is not found, you may need to add Python's Scripts Folder to your Path:
+For Windows, search for 'Environment Variables' and open 'Edit the system environment variables'. There open 'Environment Variables'. Under 'User Variables' find Path and click Edit. Select 'New' and add this:
 ```
 %LOCALAPPDATA%\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\Scripts
 ```
