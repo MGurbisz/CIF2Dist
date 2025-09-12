@@ -1,6 +1,7 @@
 *.csv
 venv/
 *.cif
+summary.txt
 *.pyc
 dist/
 build/

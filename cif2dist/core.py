@@ -34,6 +34,10 @@ def compute_distances(cif_path, user_site: str, cutoff_dist: float, filter: str)
     else:
         # If it's a Wyckoff letter, just return it directly
         print(f"User provided Wyckoff label: {site_label}")
+        # check if wyckoff letter is unambigous, thow error if not
+        print(get_atom_label_for_wyckoff(structure, site_label))
+        if not len(get_atom_label_for_wyckoff(structure, site_label)) == 1:
+            raise ValueError(f"wyckoff label '{site_label}' not unambiguous of found.")
         wyckoff = site_label
         # resolve wyckoff letter to origin coords
         origin_fraccoord = get_asymmetric_coords_for_wyckoff(structure, wyckoff)
@@ -46,21 +50,23 @@ def compute_distances(cif_path, user_site: str, cutoff_dist: float, filter: str)
 
     neighbors = structure.get_sites_in_sphere(origin_cart, cutoff_dist, True, True)
 
+    filter_labels = []
     # Filter neighbors according to user filter
     if filter is not None:
         # if filter is wyckoff, get site label
         filter_class, filter_label = classify_site(filter)
         if filter_class == "wyckoff":
-            filter_fraccoord = get_asymmetric_coords_for_wyckoff(structure, filter_label)
-            filter_cart = structure.lattice.get_cartesian_coords(filter_fraccoord)
-            filter_neighbor = structure.get_sites_in_sphere(filter_cart, 0.1, True, True)
-            filter_label = filter_neighbor[0].label
+            # get all atom_labels
+            filter_labels = get_atom_label_for_wyckoff(structure, filter_label)
+        else:
+            # already is atom label, append one label to filter list.
+            filter_labels.append(filter_label)
 
     # filter neighbors
     filtered_neighbors = []
     if filter is not None:
         for i, neighbor in enumerate(neighbors):
-            if matches_filter(neighbor.label, filter_label):
+            if matches_filter(neighbor.label, filter_labels):
                 filtered_neighbors.append(neighbor)
     else:
         filtered_neighbors = neighbors
@@ -94,15 +100,22 @@ def compute_distances(cif_path, user_site: str, cutoff_dist: float, filter: str)
 
     return results
 
-def matches_filter(neighbor_label: str, filter_label: str) -> bool:
+def matches_filter(neighbor_label: str, filter_labels: list[str]) -> bool:
     """
-    Returns true if neighbor_label matches filter_label.
+    Returns true if neighbor_label appears in filter_label.
     If filter_label is a atom site: only exact match is accepted.
-    If filter_label is an element: All atomsites with this element are accepted"""
-    if re.match(r".*\d+$", filter_label):
-        return neighbor_label == filter_label
-    else:
-        return re.match(rf"^{re.escape(filter_label)}\d+$", neighbor_label) is not None
+    If filter_label is an element: All atomsites with this element are accepted
+    """
+    element_match = re.match(r"[A-Z][a-z]?", neighbor_label)
+    if not element_match:
+        raise ValueError(f"Invalid neighbor label '{neighbor_label}")
+    
+    element_symbol = element_match.group()
+
+    return (
+        neighbor_label in filter_labels or
+        element_symbol in filter_labels
+    )
 
 def export_to_txt(results: list[tuple[str, int, float]], filename="summary.txt") -> None:
     """
@@ -114,22 +127,27 @@ def export_to_txt(results: list[tuple[str, int, float]], filename="summary.txt")
             f.write(line + '\n')
     print(f"output file written.")
     
-def get_atom_label_for_wyckoff(structure, user_wyckoff: str) -> str:
+def get_atom_label_for_wyckoff(structure, user_wyckoff: str) -> list[str]:
     """
-    Returns atom site label given a wyckoff letter (4a and a will give the same result, multiplicity will be omitted)
+    Returns List of matching atom site label given a wyckoff letter (4a and a will give the same result, multiplicity will be omitted)
     """
     analyzer = SpacegroupAnalyzer(structure, symprec=1e-5)
     wyckoff_data = analyzer.get_symmetry_dataset()
     wyckoff_letters = wyckoff_data["wyckoffs"]
 
     target_letter = user_wyckoff.strip().lower()[-1]
+    matching_labels = []
+
     for i, letter in enumerate(wyckoff_letters):
         if letter.lower() == target_letter:
-            species = structure[i].species_string
-            label = f"{species}{i+1}"
-            return label
-    
-    raise ValueError(f"No site found with wyckoff letter: '{user_wyckoff}'")
+            atom_label = structure[i].label
+            if atom_label not in matching_labels:
+                matching_labels.append(atom_label)
+
+    if not matching_labels:  
+        raise ValueError(f"No site found with wyckoff letter: '{user_wyckoff}'")
+
+    return matching_labels
 
 
 def classify_site(user_site: str) -> tuple[str, str]:
@@ -144,6 +162,7 @@ def classify_site(user_site: str) -> tuple[str, str]:
     return ("atomsite", user_site)
 
 def get_asymmetric_coords_for_wyckoff(structure, target_wyckoff: str) -> tuple[float, float, float]:
+    # problem here, it just returns the first wyckoff site match. deprecate this method
     sga = SpacegroupAnalyzer(structure, symprec=1e-3)
     symm_struct = sga.get_symmetrized_structure()
 

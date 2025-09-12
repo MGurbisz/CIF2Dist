@@ -11,6 +11,8 @@ def main():
     parser.add_argument('-f', "--filter", required=False, help="target atom/site/element filter (e.g., Al -> return distances to all Al-Sites, Al1 -> return all distances to Al1-sites). default: None", default=None)
     
     args = parser.parse_args()
-
-    distances = compute_distances(args.cif, args.site, args.cutoff, args.filter)
-    export_to_txt(distances)
+    try: 
+        distances = compute_distances(args.cif, args.site, args.cutoff, args.filter)
+        export_to_txt(distances)
+    except Exception as e:
+        print(f"Error: {e}")
