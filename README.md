@@ -32,7 +32,7 @@ Alternatively, you can run it using:
 python -m cif2dist.cli --help
 ```
 ## Input
-Input a CIF using its path and filename, and specify a site with -s to calculate the distance to its neighbors. This specification can be the Wyckoff site (e. g. '4a') or Wyckoff letter (e. g. 'a'), the site's name (e. g. 'Y1'), or the element (e. g. 'Y') if it is unambiguous (i .e there is only one site for this element). 
+Input a CIF using its path and filename, and specify a site with -s to calculate the distance to its neighbors. For the stom site input you can use the atom label (e. g. "Y1") directly. Otherwise stating the Wyckoff site (e. g. '4a') or Wyckoff letter (e. g. 'a') or the element (e. g. 'Y') can be done, if it's unambiguous (i. e. there is only one match for the input and a atom label). 
 ## Arguments
 The tool supports multiple Arguments
 ### Help --help, -h
@@ -45,5 +45,7 @@ Specifies center site for calculation. See Subsection 'Input'
 Specifies cutoff distance for the calculation. The default value is 10 Ångstrom.
 ### Filter --filter, -f
 Specifies the output filter. It accepts Wyckoff sites and letters, site labels and elements. The output will contain the specified site distances only.
+### No Version Check --no-version-check
+Disables automatic version check.
 ## Output
  After running the code, you'll get an output file called 'summary.txt'. It contains the Site labels, the number of atoms on this site at the same distance and then the distance itself in Å all separated by a tab space character.
