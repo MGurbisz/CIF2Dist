@@ -3,6 +3,7 @@ from pymatgen.io.cif import CifParser
 import numpy as np
 import re
 import os
+import warnings
 
 remove_int_from_str = r'[0-9]'
 
@@ -18,11 +19,15 @@ def compute_distances(cif_path, user_site: str, cutoff_dist: float, filter: str)
     if not os.path.exists(cif_path):
         raise FileNotFoundError(f"CIF not found at: {cif_path}")
 
-    parser = CifParser(cif_path)
-    structure = parser.get_structures(primitive=False)[0]
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore", UserWarning)
+        parser = CifParser(cif_path)
+        structure = parser.parse_structures()[0]
+        # default output of parse_structures() has changed to primitive=False, therefore throws a warning
+     
     analyzer = SpacegroupAnalyzer(structure, symprec=1e-5)
     wyckoff_data = analyzer.get_symmetry_dataset()
-    wyckoff_letters = wyckoff_data["wyckoffs"]
+    wyckoff_letters = wyckoff_data.wyckoffs
 
     # DEBUG: Print general info
     print(f"\nSuccessfully loaded CIF: {cif_path}")
@@ -37,7 +42,7 @@ def compute_distances(cif_path, user_site: str, cutoff_dist: float, filter: str)
         # check if wyckoff letter is unambigous, thow error if not
         print(get_atom_label_for_wyckoff(structure, site_label))
         if not len(get_atom_label_for_wyckoff(structure, site_label)) == 1:
-            raise ValueError(f"wyckoff label '{site_label}' not unambiguous of found.")
+            raise ValueError(f"wyckoff label '{site_label}' not unambiguous or found.")
         wyckoff = site_label
         # resolve wyckoff letter to origin coords
         origin_fraccoord = get_asymmetric_coords_for_wyckoff(structure, wyckoff)
@@ -133,7 +138,7 @@ def get_atom_label_for_wyckoff(structure, user_wyckoff: str) -> list[str]:
     """
     analyzer = SpacegroupAnalyzer(structure, symprec=1e-5)
     wyckoff_data = analyzer.get_symmetry_dataset()
-    wyckoff_letters = wyckoff_data["wyckoffs"]
+    wyckoff_letters = wyckoff_data.wyckoffs
 
     target_letter = user_wyckoff.strip().lower()[-1]
     matching_labels = []
