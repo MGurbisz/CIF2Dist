@@ -1,3 +1,4 @@
+#cif2dist/cli.py
 import argparse
 from cif2dist.core import compute_distances, export_to_txt
 from cif2dist import __version__

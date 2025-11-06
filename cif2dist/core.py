@@ -1,3 +1,4 @@
+#cif2dist/core.py
 from pymatgen.symmetry.analyzer import SpacegroupAnalyzer
 from pymatgen.io.cif import CifParser
 import numpy as np
@@ -13,8 +14,8 @@ def compute_distances(cif_path, user_site: str, cutoff_dist: float, filter: str)
     """
     site_class, site_label = classify_site(user_site)
 
-    print("site class:", site_class)
-    print("site_label:", site_label)
+#    print("site_class:", site_class)
+#    print("site_label:", site_label)
 
     if not os.path.exists(cif_path):
         raise FileNotFoundError(f"CIF not found at: {cif_path}")
@@ -37,12 +38,10 @@ def compute_distances(cif_path, user_site: str, cutoff_dist: float, filter: str)
     if site_class == "atomsite":
         wyckoff, origin_fraccoord = get_wyckoff_fraccoords_for_atomsite(parser, structure, site_label, wyckoff_letters)
     else:
-        # If it's a Wyckoff letter, just return it directly
-        print(f"User provided Wyckoff label: {site_label}")
         # check if wyckoff letter is unambigous, thow error if not
-        print(get_atom_label_for_wyckoff(structure, site_label))
+        print(f"Matched wyckoff letter '{site_label}' to atom label(s): {get_atom_label_for_wyckoff(structure, site_label)}")
         if not len(get_atom_label_for_wyckoff(structure, site_label)) == 1:
-            raise ValueError(f"wyckoff label '{site_label}' not unambiguous or found.")
+            raise ValueError(f"wyckoff letter '{site_label}' not unambiguous.")
         wyckoff = site_label
         # resolve wyckoff letter to origin coords
         origin_fraccoord = get_asymmetric_coords_for_wyckoff(structure, wyckoff)
